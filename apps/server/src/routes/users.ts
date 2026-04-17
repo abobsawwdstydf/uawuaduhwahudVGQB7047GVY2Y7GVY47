@@ -86,6 +86,7 @@ router.get('/notifications', async (req: AuthRequest, res) => {
         fontSize: true,
         reducedMotion: true,
         compactMode: true,
+        hideStoryViews: true,
         settingsUpdatedAt: true,
       }
     });
@@ -101,6 +102,7 @@ router.get('/notifications', async (req: AuthRequest, res) => {
       fontSize: 'medium',
       reducedMotion: false,
       compactMode: false,
+      hideStoryViews: false,
     });
   } catch (error) {
     console.error('Get notifications error:', error);
@@ -113,7 +115,8 @@ router.put('/settings', async (req: AuthRequest, res) => {
   try {
     const {
       notifyAll, notifyMessages, notifyCalls, notifyFriends,
-      theme, chatTheme, language, fontSize, reducedMotion, compactMode
+      theme, chatTheme, language, fontSize, reducedMotion, compactMode,
+      hideStoryViews
     } = req.body;
 
     const updateData: Record<string, any> = {
@@ -130,6 +133,7 @@ router.put('/settings', async (req: AuthRequest, res) => {
     if (typeof fontSize === 'string') updateData.fontSize = fontSize;
     if (typeof reducedMotion === 'boolean') updateData.reducedMotion = reducedMotion;
     if (typeof compactMode === 'boolean') updateData.compactMode = compactMode;
+    if (typeof hideStoryViews === 'boolean') updateData.hideStoryViews = hideStoryViews;
 
     const user = await prisma.user.update({
       where: { id: req.userId },
@@ -144,6 +148,7 @@ router.put('/settings', async (req: AuthRequest, res) => {
         fontSize: true,
         reducedMotion: true,
         compactMode: true,
+        hideStoryViews: true,
       },
       data: updateData,
     });

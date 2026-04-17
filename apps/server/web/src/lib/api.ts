@@ -550,7 +550,7 @@ class ApiClient {
     });
   }
 
-  // Settings sync
+// Settings sync
   async getSettings() {
     return this.request<{
       notifyAll: boolean;
@@ -563,6 +563,7 @@ class ApiClient {
       fontSize: string;
       reducedMotion: boolean;
       compactMode: boolean;
+      hideStoryViews: boolean;
       updatedAt: string;
     }>('/users/settings');
   }
@@ -578,6 +579,7 @@ class ApiClient {
     fontSize?: string;
     reducedMotion?: boolean;
     compactMode?: boolean;
+    hideStoryViews?: boolean;
   }) {
     return this.request('/users/settings', {
       method: 'PUT',
