@@ -282,7 +282,7 @@ router.get('/verified', authenticateAdmin, async (req, res) => {
       } else if (e.chat) {
         name = e.chat.name || e.chat.username || '';
         members = e.chat.members.length;
-        const admin = e.chat.members.find(m => m.role === 'admin');
+        const admin = e.chat.members.find(m => (m.role === 'owner' || m.role === 'admin'));
         owner = admin?.user?.displayName || admin?.user?.username || '';
         avatar = e.chat.avatar || '';
       }
