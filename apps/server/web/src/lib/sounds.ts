@@ -80,8 +80,12 @@ let callAudioContext: AudioContext | null = null;
 let callOscillators: { osc: OscillatorNode; gain: GainNode }[] = [];
 
 export function playCallRingtone() {
+  // Mobile-first approach: use Web Audio API directly for better mobile support
+  // HTMLAudioElement often fails on mobile when screen is off or app is backgrounded
+  playCallRingtoneWebAudio();
+  
+  // Also try HTMLAudioElement as backup for desktop
   try {
-    // First try HTMLAudioElement approach
     if (callAudio) {
       callAudio.pause();
       callAudio.currentTime = 0;
@@ -90,19 +94,21 @@ export function playCallRingtone() {
     callAudio.loop = true;
     callAudio.volume = 0.5;
     
-    // Try to play, fallback to Web Audio API if blocked
+    // Preload for faster playback
+    callAudio.load();
+    
+    // Try to play silently (won't interrupt Web Audio)
     callAudio.play().catch(() => {
-      // Browser blocked autoplay — use Web Audio API fallback
-      playCallRingtoneWebAudio();
+      // Silent fail - Web Audio is already playing
     });
   } catch (e) {
-    // If HTMLAudioElement fails, use Web Audio API
-    playCallRingtoneWebAudio();
+    // Silent fail - Web Audio is handling it
   }
 }
 
 /**
  * Alternative ringtone using Web Audio API — more reliable for autoplay
+ * Uses higher volume and better frequency pattern for mobile devices
  */
 function playCallRingtoneWebAudio() {
   try {
@@ -121,18 +127,19 @@ function playCallRingtoneWebAudio() {
 
     // Create a pleasant ringing pattern — two alternating tones
     // Pattern: 440Hz + 480Hz (classic ringtone frequencies)
+    // Louder volume for mobile devices
     const ringPattern = () => {
       const duration = 2.0; // 2 seconds ring cycle
       const ringOn = 0.8;   // ring for 0.8s
       const ringOff = 1.2;  // pause for 1.2s
       
-      // Tone 1: 440 Hz
+      // Tone 1: 440 Hz - louder for mobile
       const osc1 = ctx.createOscillator();
       const gain1 = ctx.createGain();
       osc1.type = 'sine';
       osc1.frequency.setValueAtTime(440, now);
-      gain1.gain.setValueAtTime(0.15, now);
-      gain1.gain.setValueAtTime(0.15, now + ringOn);
+      gain1.gain.setValueAtTime(0.3, now); // Increased from 0.15 to 0.3
+      gain1.gain.setValueAtTime(0.3, now + ringOn);
       gain1.gain.setValueAtTime(0, now + ringOn + 0.01);
       osc1.connect(gain1);
       gain1.connect(ctx.destination);
@@ -140,13 +147,13 @@ function playCallRingtoneWebAudio() {
       osc1.stop(now + duration);
       callOscillators.push({ osc: osc1, gain: gain1 });
 
-      // Tone 2: 480 Hz
+      // Tone 2: 480 Hz - louder for mobile
       const osc2 = ctx.createOscillator();
       const gain2 = ctx.createGain();
       osc2.type = 'sine';
       osc2.frequency.setValueAtTime(480, now);
-      gain2.gain.setValueAtTime(0.15, now);
-      gain2.gain.setValueAtTime(0.15, now + ringOn);
+      gain2.gain.setValueAtTime(0.3, now); // Increased from 0.15 to 0.3
+      gain2.gain.setValueAtTime(0.3, now + ringOn);
       gain2.gain.setValueAtTime(0, now + ringOn + 0.01);
       osc2.connect(gain2);
       gain2.connect(ctx.destination);
