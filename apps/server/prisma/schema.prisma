@@ -65,6 +65,7 @@ model User {
   uploadedFiles       TelegramFile[]
   verifiedEntities    VerifiedEntity[] @relation("VerifiedBy")
   bansIssued          UserBan[]        @relation("BansIssued")
+  aiChats             AIChat[] // AI conversations
 }
 
 model Chat {
