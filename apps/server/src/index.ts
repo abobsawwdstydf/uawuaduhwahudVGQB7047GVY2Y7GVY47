@@ -53,8 +53,10 @@ app.set('trust proxy', 1);
 app.use(cors({ origin: config.corsOrigins }));
 app.use(express.json({ limit: '10mb' }));
 
-// Файлы больше не хранятся локально - всё в Telegram!
-// Serve uploads удален - файлы скачиваются из Telegram по запросу
+// Serve uploaded files
+import { UPLOADS_ROOT } from './shared';
+import express from 'express';
+app.use('/uploads', express.static(UPLOADS_ROOT));
 
 // Rate limiting for auth endpoints (prevent brute-force)
 const authLimiter = rateLimit({
@@ -154,8 +156,8 @@ app.get('/api/ice-servers', authenticateToken, (_req: AuthRequest, res) => {
 // Socket.io
 setupSocket(io);
 
-// Endpoint для скачивания файлов из Telegram
-import { telegramStorage } from './lib/telegramStorage';
+// Endpoint для скачивания файлов из локального хранилища
+import { localStorage } from './lib/localStorage';
 
 app.get('/api/files/:fileId/download', async (req, res) => {
   try {
@@ -168,70 +170,22 @@ app.get('/api/files/:fileId/download', async (req, res) => {
     res.setHeader('Access-Control-Allow-Headers', 'Range, Content-Type');
     res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Content-Length, Accept-Ranges');
 
-    if (!fileId || !fileId.startsWith('tg_')) {
+    if (!fileId || !fileId.startsWith('local_')) {
       console.warn(`[FILES] Неверный fileId: ${fileId}`);
       res.status(400).json({ error: 'Неверный ID файла' });
       return;
     }
 
-    const telegramFile = await prisma.telegramFile.findUnique({
-      where: { fileId },
-      include: { chunks: { orderBy: { chunkIndex: 'asc' } } }
-    });
+    const file = await localStorage.downloadFile(fileId);
+    console.log(`[FILES] Файл скачан: ${fileId} (${file.mimeType}, ${file.buffer.length}b)`);
 
-    if (!telegramFile) {
-      console.warn(`[FILES] Файл ${fileId} не найден в БД`);
-      res.status(404).json({ error: 'Файл не найден в хранилище' });
-      return;
-    }
-
-    if (!telegramFile.chunks || telegramFile.chunks.length === 0) {
-      console.warn(`[FILES] Файл ${fileId} без чанков`);
-      res.status(404).json({ error: 'Файл повреждён (нет чанков)' });
-      return;
-    }
-
-    console.log(`[FILES] Файл найден: ${telegramFile.originalName} (${telegramFile.mimeType}, ${telegramFile.totalSize}b, ${telegramFile.chunks.length} чанков)`);
-
-    let fileBuffer: Buffer;
-    try {
-      // Retry up to 2 times with delay
-      let lastError: Error | null = null;
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          fileBuffer = await telegramStorage.downloadFile(
-            telegramFile.fileId,
-            telegramFile.chunks
-          );
-          lastError = null;
-          break;
-        } catch (retryError: any) {
-          lastError = retryError;
-          console.warn(`[FILES] Download attempt ${attempt + 1} failed: ${retryError.message}`);
-          if (attempt < 1) await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-        }
-      }
-      if (lastError) throw lastError;
-    } catch (downloadError: any) {
-      console.error(`[FILES] Ошибка загрузки из Telegram:`, downloadError.message);
-      res.status(503).json({ error: 'Файл временно недоступен (ошибка загрузки из хранилища)' });
-      return;
-    }
-
-    console.log(`[FILES] Файл скачан: ${fileBuffer.length}b`);
-
-    await prisma.telegramFile.update({
-      where: { fileId },
-      data: { lastAccessed: new Date(), accessCount: { increment: 1 } }
-    }).catch(() => {}); // ignore update errors
-
-    const isInline = telegramFile.mimeType.startsWith('image/') ||
-                     telegramFile.mimeType.startsWith('video/') ||
-                     telegramFile.mimeType.startsWith('audio/');
+    const isInline = file.mimeType.startsWith('image/') ||
+                     file.mimeType.startsWith('video/') ||
+                     file.mimeType.startsWith('audio/');
 
     if (isInline) {
-      res.setHeader('Content-Type', telegramFile.mimeType);
-      res.setHeader('Content-Length', fileBuffer.length);
+      res.setHeader('Content-Type', file.mimeType);
+      res.setHeader('Content-Length', file.buffer.length);
       res.setHeader('Accept-Ranges', 'bytes');
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
 
@@ -239,39 +193,35 @@ app.get('/api/files/:fileId/download', async (req, res) => {
       if (range) {
         const parts = range.replace(/bytes=/, '').split('-');
         const start = parseInt(parts[0], 10);
-        const end = parts[1] ? parseInt(parts[1], 10) : fileBuffer.length - 1;
+        const end = parts[1] ? parseInt(parts[1], 10) : file.buffer.length - 1;
 
-        if (start >= fileBuffer.length) {
-          res.writeHead(416, { 'Content-Range': `bytes */${fileBuffer.length}` });
+        if (start >= file.buffer.length) {
+          res.writeHead(416, { 'Content-Range': `bytes */${file.buffer.length}` });
           res.end();
           return;
         }
 
-        const chunk = fileBuffer.slice(start, Math.min(end + 1, fileBuffer.length));
+        const chunk = file.buffer.slice(start, Math.min(end + 1, file.buffer.length));
         res.writeHead(206, {
-          'Content-Range': `bytes ${start}-${Math.min(end, fileBuffer.length - 1)}/${fileBuffer.length}`,
+          'Content-Range': `bytes ${start}-${Math.min(end, file.buffer.length - 1)}/${file.buffer.length}`,
           'Accept-Ranges': 'bytes',
           'Content-Length': chunk.length,
-          'Content-Type': telegramFile.mimeType,
+          'Content-Type': file.mimeType,
         });
         res.end(chunk);
       } else {
-        res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(telegramFile.originalName)}"`);
-        res.end(fileBuffer);
+        res.end(file.buffer);
       }
     } else {
-      res.setHeader('Content-Type', telegramFile.mimeType);
-      res.setHeader('Content-Length', fileBuffer.length);
-      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(telegramFile.originalName)}"`);
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('Content-Disposition', `attachment; filename="${file.originalName}"`);
+      res.setHeader('Content-Length', file.buffer.length);
       res.setHeader('Cache-Control', 'public, max-age=31536000');
-      res.end(fileBuffer);
+      res.end(file.buffer);
     }
-
   } catch (error: any) {
-    console.error('[FILES] Ошибка скачивания:', error.message, error.stack);
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'Ошибка скачивания: ' + error.message });
-    }
+    console.error('[FILES] Ошибка скачивания:', error.message);
+    res.status(404).json({ error: 'Файл не найден' });
   }
 });
 

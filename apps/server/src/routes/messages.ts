@@ -3,7 +3,7 @@ import { prisma } from '../db';
 import { Prisma } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth';
 import { SENDER_SELECT, MESSAGE_INCLUDE, uploadFile } from '../shared';
-import { telegramStorage } from '../lib/telegramStorage';
+import { localStorage } from '../lib/localStorage';
 
 const router = Router();
 
@@ -61,7 +61,7 @@ router.get('/chat/:chatId', async (req: AuthRequest, res) => {
   }
 });
 
-// Загрузка файлов - ОТПРАВКА В TELEGRAM (не локально!)
+// Загрузка файлов - ЛОКАЛЬНОЕ ХРАНИЛИЩЕ
 // Limit increased to 1200 files to match client UI
 router.post('/upload', uploadFile.array('files', 1200), async (req: AuthRequest, res) => {
   try {
@@ -74,7 +74,6 @@ router.post('/upload', uploadFile.array('files', 1200), async (req: AuthRequest,
     }
 
     const uploadedFiles = [];
-    const failedFiles = [];
 
     for (const file of files) {
       const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
@@ -98,74 +97,24 @@ router.post('/upload', uploadFile.array('files', 1200), async (req: AuthRequest,
         }
       }
 
-      let storedFile;
-      try {
-        // Отправляем файл в Telegram каналы
-        storedFile = await telegramStorage.uploadFile(
-          file.buffer,
-          originalName,
-          mimeType,
-          req.userId!
-        );
-        console.log(`[UPLOAD] Telegram OK: ${storedFile.fileId} (${mimeType})`);
-      } catch (telegramError: any) {
-        console.error(`[UPLOAD] Telegram error for ${originalName}: ${telegramError.message}`);
-        failedFiles.push({ name: originalName, error: telegramError.message });
-        continue; // Continue with next file instead of failing all
-      }
+      // Сохраняем файл локально
+      const storedFile = await localStorage.uploadFile(
+        file.buffer,
+        originalName,
+        mimeType
+      );
+      console.log(`[UPLOAD] Local OK: ${storedFile.fileId} (${mimeType})`);
 
-      // Сохраняем метаданные в БД
-      try {
-        const telegramFile = await prisma.telegramFile.create({
-          data: {
-            fileId: storedFile.fileId,
-            userId: req.userId!,
-            originalName: storedFile.originalName,
-            mimeType: storedFile.mimeType,
-            totalSize: storedFile.totalSize,
-            encryptionLevel: storedFile.encryptionLevel,
-            chunks: {
-              create: storedFile.chunks.map(chunk => ({
-                fileId: storedFile.fileId,
-                chunkIndex: chunk.chunkIndex,
-                channelId: chunk.channelId,
-                messageId: chunk.messageId,
-                botId: chunk.botId,
-                size: chunk.size,
-              }))
-            }
-          },
-          include: { chunks: true }
-        });
-        console.log(`[UPLOAD] БД OK: ${telegramFile.fileId}`);
-        uploadedFiles.push({
-          fileId: telegramFile.fileId,
-          filename: telegramFile.originalName,
-          size: telegramFile.totalSize,
-          mimetype: telegramFile.mimeType,
-          url: `/api/files/${telegramFile.fileId}/download`,
-        });
-      } catch (dbError: any) {
-        console.error(`[UPLOAD] БД error: ${dbError.message}`);
-        // Файл в Telegram есть, но не в БД — возвращаем fileId напрямую
-        uploadedFiles.push({
-          fileId: storedFile.fileId,
-          filename: storedFile.originalName,
-          size: storedFile.totalSize,
-          mimetype: storedFile.mimeType,
-          url: `/api/files/${storedFile.fileId}/download`,
-        });
-      }
+      uploadedFiles.push({
+        fileId: storedFile.fileId,
+        filename: storedFile.originalName,
+        size: storedFile.size,
+        mimetype: storedFile.mimeType,
+        url: localStorage.getFilePath(storedFile.fileId),
+      });
     }
 
-    // Return results with partial success info
-    const response: any = { files: uploadedFiles };
-    if (failedFiles.length > 0) {
-      response.failed = failedFiles;
-      response.partialSuccess = true;
-    }
-
-    res.json(response);
+    res.json({ files: uploadedFiles });
   } catch (error: any) {
     console.error('[UPLOAD] Critical error:', error.message);
     res.status(500).json({ error: 'Ошибка загрузки: ' + (error.message || 'Неизвестная ошибка') });
