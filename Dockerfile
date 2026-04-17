@@ -7,10 +7,10 @@ COPY package*.json ./
 COPY apps/server/package*.json ./apps/server/
 COPY apps/server/web/package*.json ./apps/server/web/
 
-# Install all dependencies (including web-push)
-RUN npm install --legacy-peer-deps
-RUN cd apps/server && npm install --legacy-peer-deps
-RUN cd apps/server/web && npm install --legacy-peer-deps
+# Install all dependencies (skip optional dependencies for specific platforms)
+RUN npm install --legacy-peer-deps --omit=optional
+RUN cd apps/server && npm install --legacy-peer-deps --omit=optional
+RUN cd apps/server/web && npm install --legacy-peer-deps --omit=optional
 
 # Copy source code
 COPY . .

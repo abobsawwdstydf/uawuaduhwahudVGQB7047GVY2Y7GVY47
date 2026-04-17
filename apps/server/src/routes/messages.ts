@@ -183,8 +183,32 @@ router.put('/:id', async (req: AuthRequest, res) => {
       return;
     }
 
-    const message = await prisma.message.findUnique({ where: { id } });
-    if (!message || message.senderId !== req.userId) {
+    const message = await prisma.message.findUnique({ 
+      where: { id },
+      include: { chat: true }
+    });
+    
+    if (!message) {
+      res.status(404).json({ error: 'Сообщение не найдено' });
+      return;
+    }
+
+    // Проверка прав: автор сообщения ИЛИ владелец чата (не admin!)
+    let canEdit = message.senderId === req.userId;
+    
+    if (!canEdit) {
+      // Проверяем роль в чате для каналов и групп
+      const member = await prisma.chatMember.findUnique({
+        where: { chatId_userId: { chatId: message.chatId, userId: req.userId! } },
+      });
+      
+      // Только owner может редактировать чужие сообщения в каналах/группах
+      if (member && ['channel', 'group'].includes(message.chat.type) && member.role === 'owner') {
+        canEdit = true;
+      }
+    }
+
+    if (!canEdit) {
       res.status(403).json({ error: 'Нет прав для редактирования' });
       return;
     }
@@ -197,6 +221,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
 
     res.json(updated);
   } catch (error) {
+    console.error('Edit message error:', error);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
@@ -208,9 +233,30 @@ router.delete('/:id', async (req: AuthRequest, res) => {
 
     const message = await prisma.message.findUnique({
       where: { id },
-      include: { media: true },
+      include: { media: true, chat: true },
     });
-    if (!message || message.senderId !== req.userId) {
+    
+    if (!message) {
+      res.status(404).json({ error: 'Сообщение не найдено' });
+      return;
+    }
+
+    // Проверка прав: автор сообщения ИЛИ владелец чата (не admin!)
+    let canDelete = message.senderId === req.userId;
+    
+    if (!canDelete) {
+      // Проверяем роль в чате для каналов и групп
+      const member = await prisma.chatMember.findUnique({
+        where: { chatId_userId: { chatId: message.chatId, userId: req.userId! } },
+      });
+      
+      // Только owner может удалять чужие сообщения в каналах/группах
+      if (member && ['channel', 'group'].includes(message.chat.type) && member.role === 'owner') {
+        canDelete = true;
+      }
+    }
+
+    if (!canDelete) {
       res.status(403).json({ error: 'Нет прав для удаления' });
       return;
     }
@@ -230,6 +276,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
 
     res.json({ success: true });
   } catch (error) {
+    console.error('Delete message error:', error);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
@@ -313,6 +360,112 @@ router.get('/chat/:chatId/shared', async (req: AuthRequest, res) => {
   } catch (error) {
     console.error('Shared media error:', error);
     res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Переслать сообщение (включая сообщения из AI чата)
+router.post('/forward', async (req: AuthRequest, res) => {
+  try {
+    const { messageId, targetChatId, isAiMessage } = req.body;
+
+    if (!messageId || !targetChatId) {
+      res.status(400).json({ error: 'messageId и targetChatId обязательны' });
+      return;
+    }
+
+    // Проверка доступа к целевому чату
+    const targetMember = await prisma.chatMember.findUnique({
+      where: { chatId_userId: { chatId: targetChatId, userId: req.userId! } },
+    });
+
+    if (!targetMember) {
+      res.status(403).json({ error: 'Нет доступа к целевому чату' });
+      return;
+    }
+
+    let messageData: { content?: string; type?: string; media?: any[] } = {};
+
+    if (isAiMessage) {
+      // Получаем сообщение из AI чата
+      const aiMessage = await prisma.aiMessage.findUnique({
+        where: { id: messageId },
+        include: { chat: true },
+      });
+
+      if (!aiMessage) {
+        res.status(404).json({ error: 'AI сообщение не найдено' });
+        return;
+      }
+
+      // Проверка: пользователь владеет этим AI чатом
+      if (aiMessage.chat.userId !== req.userId) {
+        res.status(403).json({ error: 'Нет доступа к этому AI сообщению' });
+        return;
+      }
+
+      messageData = {
+        content: `💬 *Сообщение от Nexo AI*:\n\n${aiMessage.content}`,
+        type: 'text',
+      };
+    } else {
+      // Получаем обычное сообщение
+      const message = await prisma.message.findUnique({
+        where: { id: messageId },
+        include: { media: true, sender: true },
+      });
+
+      if (!message) {
+        res.status(404).json({ error: 'Сообщение не найдено' });
+        return;
+      }
+
+      // Проверка доступа к исходному чату
+      const sourceMember = await prisma.chatMember.findUnique({
+        where: { chatId_userId: { chatId: message.chatId, userId: req.userId! } },
+      });
+
+      if (!sourceMember && message.senderId !== req.userId) {
+        res.status(403).json({ error: 'Нет доступа к исходному сообщению' });
+        return;
+      }
+
+      messageData = {
+        content: message.content,
+        type: message.type,
+        media: message.media.map(m => ({
+          type: m.type,
+          url: m.url,
+          filename: m.filename,
+          thumbnail: m.thumbnail,
+          size: m.size,
+          duration: m.duration,
+          width: m.width,
+          height: m.height,
+        })),
+      };
+    }
+
+    // Создаём пересланное сообщение
+    const forwardedMessage = await prisma.message.create({
+      data: {
+        chatId: targetChatId,
+        senderId: req.userId!,
+        content: messageData.content,
+        type: messageData.type || 'text',
+        forwardedFromId: isAiMessage ? undefined : messageId,
+        media: messageData.media ? { create: messageData.media } : undefined,
+      },
+      include: MESSAGE_INCLUDE,
+    });
+
+    // Отправляем событие через WebSocket
+    const io = getIO();
+    io.to(targetChatId).emit('message:new', forwardedMessage);
+
+    res.json(forwardedMessage);
+  } catch (error) {
+    console.error('Forward message error:', error);
+    res.status(500).json({ error: 'Ошибка при пересылке сообщения' });
   }
 });
 

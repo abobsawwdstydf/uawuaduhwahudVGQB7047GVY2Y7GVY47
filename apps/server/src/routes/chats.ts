@@ -242,7 +242,7 @@ router.post('/group', async (req: AuthRequest, res) => {
         members: {
           create: allMemberIds.map((uid) => ({
             userId: uid,
-            role: uid === req.userId ? 'admin' : 'member',
+            role: uid === req.userId ? 'owner' : 'member',
           })),
         },
       },
@@ -303,7 +303,7 @@ router.post('/channel', async (req: AuthRequest, res) => {
         members: {
           create: {
             userId: req.userId!,
-            role: 'admin',
+            role: 'owner',
           },
         },
       },
@@ -456,7 +456,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
       where: { chatId_userId: { chatId, userId: req.userId! } },
     });
 
-    if (!member || member.role !== 'admin') {
+    if (!member || member.role !== 'owner' && member.role !== 'admin') {
       res.status(403).json({ error: 'Только администратор может редактировать группу' });
       return;
     }
@@ -493,7 +493,7 @@ router.post('/:id/avatar', uploadGroupAvatar.single('avatar'), encryptUploadedFi
       where: { chatId_userId: { chatId, userId: req.userId! } },
     });
 
-    if (!member || member.role !== 'admin') {
+    if (!member || member.role !== 'owner' && member.role !== 'admin') {
       res.status(403).json({ error: 'Только администратор может менять аватар группы' });
       return;
     }
@@ -541,7 +541,7 @@ router.delete('/:id/avatar', async (req: AuthRequest, res) => {
       where: { chatId_userId: { chatId, userId: req.userId! } },
     });
 
-    if (!member || member.role !== 'admin') {
+    if (!member || member.role !== 'owner' && member.role !== 'admin') {
       res.status(403).json({ error: 'Только администратор может менять аватар группы' });
       return;
     }
@@ -587,7 +587,7 @@ router.post('/:id/members', async (req: AuthRequest, res) => {
       where: { chatId_userId: { chatId, userId: req.userId! } },
     });
 
-    if (!member || member.role !== 'admin') {
+    if (!member || member.role !== 'owner' && member.role !== 'admin') {
       res.status(403).json({ error: 'Только администратор может добавлять участников' });
       return;
     }
@@ -638,7 +638,7 @@ router.delete('/:id/members/:userId', async (req: AuthRequest, res) => {
       where: { chatId_userId: { chatId, userId: req.userId! } },
     });
 
-    if (!member || member.role !== 'admin') {
+    if (!member || member.role !== 'owner' && member.role !== 'admin') {
       res.status(403).json({ error: 'Только администратор может удалять участников' });
       return;
     }
@@ -707,7 +707,7 @@ router.get('/:id/analytics', async (req: AuthRequest, res) => {
       },
     });
     
-    if (!member || member.role !== 'admin') {
+    if (!member || member.role !== 'owner' && member.role !== 'admin') {
       res.status(403).json({ error: 'Только администратор может просматривать аналитику' });
       return;
     }
@@ -855,7 +855,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
 
     if (chat.type === 'channel') {
       // For channels: only admin can delete, and it deletes for everyone
-      const isAdmin = chat.members.some(m => m.userId === userId && m.role === 'admin');
+      const isAdmin = chat.members.some(m => m.userId === userId && (m.role === 'owner' || m.role === 'admin'));
       if (!isAdmin) {
         // Regular members can just leave
         await prisma.chatMember.delete({
@@ -928,7 +928,7 @@ router.post('/:id/avatar', uploadGroupAvatar.single('avatar'), encryptUploadedFi
       where: { chatId_userId: { chatId, userId: req.userId! } },
     });
 
-    if (!member || member.role !== 'admin') {
+    if (!member || member.role !== 'owner' && member.role !== 'admin') {
       res.status(403).json({ error: 'Только администратор может менять аватар группы' });
       return;
     }
