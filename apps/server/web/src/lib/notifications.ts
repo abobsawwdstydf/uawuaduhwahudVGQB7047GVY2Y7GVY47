@@ -48,6 +48,7 @@ export async function registerNotificationServiceWorker(): Promise<ServiceWorker
 
 /**
  * Request notification permission and subscribe to push
+ * Improved for mobile devices with better error handling
  */
 export async function subscribeToNotifications(): Promise<PushSubscription | null> {
   if (!('Notification' in window)) {
@@ -63,7 +64,7 @@ export async function subscribeToNotifications(): Promise<PushSubscription | nul
     }
 
     if (Notification.permission === 'default') {
-      // Request permission
+      // Request permission - important for mobile
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
         console.log('[Push] Notification permission denied by user');
@@ -96,6 +97,22 @@ export async function subscribeToNotifications(): Promise<PushSubscription | nul
     return subscription;
   } catch (error) {
     console.error('[Push] Subscription failed:', error);
+    // On mobile, this often fails due to HTTPS or browser restrictions
+    // Try to re-register service worker
+    const registration = await registerNotificationServiceWorker();
+    if (registration) {
+      console.log('[Push] Retrying subscription...');
+      try {
+        const retrySubscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource
+        });
+        await sendSubscriptionToServer(retrySubscription);
+        return retrySubscription;
+      } catch (retryError) {
+        console.error('[Push] Retry failed:', retryError);
+      }
+    }
     return null;
   }
 }
