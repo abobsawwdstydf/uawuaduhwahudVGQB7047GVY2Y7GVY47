@@ -28,7 +28,7 @@ interface ChatListItem {
   updatedAt: string;
 }
 
-export default function NexoAIPage({ onClose }: { onClose?: () => void }) {
+export default function NexoAIPage({ onClose, isFullMode }: { onClose?: () => void; isFullMode?: boolean }) {
   const { token } = useAuthStore();
   const [chatList, setChatList] = useState<ChatListItem[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
@@ -37,7 +37,7 @@ export default function NexoAIPage({ onClose }: { onClose?: () => void }) {
   const [isSending, setIsSending] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(true);
+  const [showSidebar, setShowSidebar] = useState(isFullMode !== true);
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [showForwardModal, setShowForwardModal] = useState(false);

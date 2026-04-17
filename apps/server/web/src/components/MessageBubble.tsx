@@ -68,6 +68,9 @@ function MessageBubble({
   const chatMessages = messages[message.chatId] || [];
   const chat = chats.find(c => c.id === message.chatId);
   const isChannel = chat?.type === 'channel';
+  const isGroup = chat?.type === 'group';
+  const isOwner = chat?.members.find(m => m.user.id === user?.id)?.role === 'owner';
+  const canManageMessages = isChannel || isGroup ? isOwner : false;
   const { t, lang } = useLang();
   
   // For channels, show channel name instead of sender name
@@ -1222,6 +1225,7 @@ function MessageBubble({
                     <Trash2 size={16} className="text-zinc-400" />
                     {t('deleteForMe')}
                   </button>
+                  {(isMine || canManageMessages) && (
                   <button
                     onClick={handleDeleteForAll}
                     className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
@@ -1231,6 +1235,7 @@ function MessageBubble({
                       ? `${t('deleteAlsoFor')} ${otherMemberName}`
                       : t('deleteForAll')}
                   </button>
+                  )}
                 </>
               ) : (
                 <>
@@ -1284,7 +1289,8 @@ function MessageBubble({
                 </button>
               )}
 
-              {isMine && message.content && (
+              {/* Edit - owner can edit too */}
+              {(isMine || (canManageMessages && message.content)) && (
                 <button
                   onClick={handleEdit}
                   className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-zinc-300 hover:bg-surface-hover hover:text-white transition-colors"

@@ -39,11 +39,14 @@ self.addEventListener('push', (event) => {
       primaryKey: Date.now(),
       ...notificationData
     },
-    requireInteraction: true,
+    requireInteraction: notificationData?.type === 'incoming_call',
     silent: false,
-    actions: [
+    actions: notificationData?.type === 'incoming_call' ? [
+      { action: 'answer_call', title: 'Принять', icon: '/logo.png' },
+      { action: 'decline_call', title: 'Отклонить' }
+    ] : [
       { action: 'open', title: 'Открыть', icon: '/logo.png' },
-      { action: 'dismiss', title: 'Закрыть' }
+      { action: 'reply', title: 'Ответить', icon: '/logo.png' }
     ]
   };
 
@@ -60,9 +63,16 @@ self.addEventListener('notificationclick', (event) => {
   const { action, data } = event.notification;
   let url = '/';
 
+  // Handle call actions
+  if (action === 'answer_call' || action === 'decline_call') {
+    url = `/?call_action=${action === 'answer_call' ? 'incoming' : 'declined'}&callerId=${data.callerId || ''}&callType=${data.callType || 'voice'}`;
+  }
+  // Handle reply action - just open chat
+  else if (action === 'reply') {
+    url = `/?chat=${data.chatId}`;
+  }
   // Build URL based on notification type
-  if (data?.type === 'incoming_call') {
-    // Call notification — open app to answer
+  else if (data?.type === 'incoming_call') {
     url = `/?call_action=incoming&callerId=${data.callerId || ''}&callType=${data.callType || 'voice'}`;
   } else if (data?.chatId) {
     url = `/?chat=${data.chatId}`;

@@ -541,19 +541,13 @@ export default function ChatPage() {
       <AnimatePresence>
         {showAI && (
           <motion.div
-            initial={{ opacity: 0, x: isMobile ? 0 : 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: isMobile ? 0 : 40 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-            className={`fixed inset-0 z-[150] sm:z-[140] ${
-              isMobile
-                ? '' // На мобилках - полный экран
-                : 'right-0 top-0 bottom-0 w-[480px]' // На ПК - боковая панель
-            }`}
+            className="fixed inset-0 z-[150] bg-[#0a0a0f]"
           >
-            <div className={`h-full bg-[#0a0a0f] ${isMobile ? '' : 'border-l border-white/10 shadow-2xl'}`}>
-              <NexoAIPage onClose={() => setShowAI(false)} />
-            </div>
+            <NexoAIPage onClose={() => setShowAI(false)} isFullMode={true} />
           </motion.div>
         )}
       </AnimatePresence>
