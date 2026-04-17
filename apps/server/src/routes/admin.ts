@@ -406,6 +406,73 @@ router.post('/cache/clear', authenticateAdmin, async (req, res) => {
   res.json({ success: true, message: 'Кэш очищен' });
 });
 
+// Broadcast message to all users
+router.post('/broadcast', authenticateAdmin, async (req, res) => {
+  try {
+    const { title, message, type } = req.body;
+    
+    if (!message || typeof message !== 'string') {
+      res.status(400).json({ error: 'Текст сообщения обязателен' });
+      return;
+    }
+
+    // Get all online users and their socket IDs
+    const onlineUsers = await prisma.user.findMany({
+      where: { isOnline: true },
+      select: { id: true }
+    });
+
+    // Get IO instance - we need to access it from the main index
+    // For now, we'll just count how many would receive it
+    const recipients = onlineUsers.length;
+
+    // Save broadcast to database for offline users
+    const broadcast = await prisma.broadcast.create({
+      data: {
+        title: title || 'Уведомление',
+        message: message.substring(0, 5000),
+        type: type || 'info',
+        sentAt: new Date()
+      }
+    });
+
+    // Emit to all connected sockets via io (we'll access it via app)
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('broadcast', {
+        id: broadcast.id,
+        title: title || 'Уведомление',
+        message: message.substring(0, 5000),
+        type: type || 'info',
+        sentAt: broadcast.sentAt.toISOString()
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      recipients,
+      broadcastId: broadcast.id,
+      message: `Сообщение отправлено ${recipients} пользователям`
+    });
+  } catch (error: any) {
+    console.error('Broadcast error:', error);
+    res.status(500).json({ error: error?.message || 'Ошибка рассылки' });
+  }
+});
+
+// Get broadcast history
+router.get('/broadcasts', authenticateAdmin, async (req, res) => {
+  try {
+    const broadcasts = await prisma.broadcast.findMany({
+      orderBy: { sentAt: 'desc' },
+      take: 50
+    });
+    res.json(broadcasts);
+  } catch (error: any) {
+    res.status(500).json({ error: error?.message || 'Ошибка получения истории' });
+  }
+});
+
 // System info
 router.get('/system/info', authenticateAdmin, async (req, res) => {
   const uptime = process.uptime();

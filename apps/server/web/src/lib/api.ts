@@ -538,6 +538,41 @@ class ApiClient {
       method: 'DELETE',
     });
   }
+
+  // Settings sync
+  async getSettings() {
+    return this.request<{
+      notifyAll: boolean;
+      notifyMessages: boolean;
+      notifyCalls: boolean;
+      notifyFriends: boolean;
+      theme: string;
+      chatTheme: string;
+      language: string;
+      fontSize: string;
+      reducedMotion: boolean;
+      compactMode: boolean;
+      updatedAt: string;
+    }>('/users/settings');
+  }
+
+  async updateSettings(settings: {
+    notifyAll?: boolean;
+    notifyMessages?: boolean;
+    notifyCalls?: boolean;
+    notifyFriends?: boolean;
+    theme?: string;
+    chatTheme?: string;
+    language?: string;
+    fontSize?: string;
+    reducedMotion?: boolean;
+    compactMode?: boolean;
+  }) {
+    return this.request('/users/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
+  }
 }
 
 export const api = new ApiClient();

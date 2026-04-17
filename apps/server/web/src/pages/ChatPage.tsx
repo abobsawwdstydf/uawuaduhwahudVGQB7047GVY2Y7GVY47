@@ -14,6 +14,8 @@ import CallModal from '../components/CallModal';
 import GroupCallModal from '../components/GroupCallModal';
 import NexoAIPage from '../pages/NexoAIPage';
 import FriendsPage from '../pages/FriendsPage';
+import { initOfflineDB, cacheChats, getCachedChats, syncPendingActions } from '../lib/offlineCache';
+import { useSettingsStore } from '../stores/settingsStore';
 
 export default function ChatPage() {
   const {
@@ -109,9 +111,23 @@ export default function ChatPage() {
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
+    
+    // Initialize offline DB and sync settings
+    (async () => {
+      try {
+        await initOfflineDB();
+        useSettingsStore.getState().syncFromServer();
+      } catch (e) {
+        console.warn('[Offline] Init failed:', e);
+      }
+    })();
+    
     loadChats();
 
-    // Pre-request media permissions so browser only asks once
+    // Sync pending offline actions when online
+    if (navigator.onLine) {
+      setTimeout(() => syncPendingActions(api), 3000);
+    }
     (async () => {
       try {
         // Check if permissions were already granted
@@ -545,9 +561,11 @@ export default function ChatPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-            className="fixed inset-0 z-[150] bg-[#0a0a0f]"
+            className={`fixed inset-0 z-[150] ${
+              isMobile ? 'bg-[#0a0a0f]' : 'right-0 top-0 bottom-0 w-[480px] bg-[#0a0a0f] border-l border-white/10 shadow-2xl'
+            }`}
           >
-            <NexoAIPage onClose={() => setShowAI(false)} isFullMode={true} />
+            <NexoAIPage onClose={() => setShowAI(false)} isFullMode={isMobile} />
           </motion.div>
         )}
       </AnimatePresence>

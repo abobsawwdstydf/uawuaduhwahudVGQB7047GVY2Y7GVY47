@@ -565,7 +565,7 @@ export default function NexoAIPage({ onClose, isFullMode }: { onClose?: () => vo
               <div className={`h-full flex flex-col ${isMobile ? 'w-full' : 'w-[280px]'}`}>
                 {/* Заголовок */}
                 <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
-                  <h2 className="text-sm font-semibold text-white">Чаты с Nexo AI</h2>
+                  <h2 className="text-sm font-semibold text-white">Чаты</h2>
                   {isMobile && (
                     <button onClick={() => setShowSidebar(false)} className="text-zinc-400">
                       <X size={18} />

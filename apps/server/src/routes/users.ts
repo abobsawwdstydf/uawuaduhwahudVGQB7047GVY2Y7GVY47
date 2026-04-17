@@ -79,7 +79,14 @@ router.get('/notifications', async (req: AuthRequest, res) => {
         notifyAll: true,
         notifyMessages: true,
         notifyCalls: true,
-        notifyFriends: true
+        notifyFriends: true,
+        theme: true,
+        chatTheme: true,
+        language: true,
+        fontSize: true,
+        reducedMotion: true,
+        compactMode: true,
+        settingsUpdatedAt: true,
       }
     });
 
@@ -87,11 +94,64 @@ router.get('/notifications', async (req: AuthRequest, res) => {
       notifyAll: true,
       notifyMessages: true,
       notifyCalls: true,
-      notifyFriends: true
+      notifyFriends: true,
+      theme: 'dark',
+      chatTheme: 'midnight',
+      language: 'ru',
+      fontSize: 'medium',
+      reducedMotion: false,
+      compactMode: false,
     });
   } catch (error) {
     console.error('Get notifications error:', error);
     res.status(500).json({ error: 'Failed to get notification settings' });
+  }
+});
+
+// Обновить настройки (объединённые уведомления + пользовательские)
+router.put('/settings', async (req: AuthRequest, res) => {
+  try {
+    const {
+      notifyAll, notifyMessages, notifyCalls, notifyFriends,
+      theme, chatTheme, language, fontSize, reducedMotion, compactMode
+    } = req.body;
+
+    const updateData: Record<string, any> = {
+      settingsUpdatedAt: new Date(),
+    };
+
+    if (typeof notifyAll === 'boolean') updateData.notifyAll = notifyAll;
+    if (typeof notifyMessages === 'boolean') updateData.notifyMessages = notifyMessages;
+    if (typeof notifyCalls === 'boolean') updateData.notifyCalls = notifyCalls;
+    if (typeof notifyFriends === 'boolean') updateData.notifyFriends = notifyFriends;
+    if (typeof theme === 'string') updateData.theme = theme;
+    if (typeof chatTheme === 'string') updateData.chatTheme = chatTheme;
+    if (typeof language === 'string') updateData.language = language;
+    if (typeof fontSize === 'string') updateData.fontSize = fontSize;
+    if (typeof reducedMotion === 'boolean') updateData.reducedMotion = reducedMotion;
+    if (typeof compactMode === 'boolean') updateData.compactMode = compactMode;
+
+    const user = await prisma.user.update({
+      where: { id: req.userId },
+      select: {
+        notifyAll: true,
+        notifyMessages: true,
+        notifyCalls: true,
+        notifyFriends: true,
+        theme: true,
+        chatTheme: true,
+        language: true,
+        fontSize: true,
+        reducedMotion: true,
+        compactMode: true,
+      },
+      data: updateData,
+    });
+
+    res.json(user);
+  } catch (error) {
+    console.error('Update settings error:', error);
+    res.status(500).json({ error: 'Ошибка сохранения настроек' });
   }
 });
 
@@ -318,26 +378,6 @@ router.get('/messages/search', async (req: AuthRequest, res) => {
   } catch (error) {
     console.error('Search messages error:', error);
     res.status(500).json({ error: 'Ошибка сервера' });
-  }
-});
-
-// Обновить настройки приватности
-router.put('/settings', async (req: AuthRequest, res) => {
-  try {
-    const { hideStoryViews } = req.body;
-
-    const updateData: Record<string, boolean> = {};
-    if (typeof hideStoryViews === 'boolean') updateData.hideStoryViews = hideStoryViews;
-
-    const user = await prisma.user.update({
-      where: { id: req.userId },
-      data: updateData,
-      select: USER_SELECT,
-    });
-
-    res.json(user);
-  } catch (error) {
-    res.status(500).json({ error: 'Ошибка сохранения настроек' });
   }
 });
 

@@ -31,6 +31,15 @@ model User {
   notifyCalls      Boolean  @default(true)
   notifyFriends    Boolean  @default(true)
 
+  // User preferences (synced)
+  theme            String   @default("dark")
+  chatTheme        String   @default("midnight")
+  language         String   @default("ru")
+  fontSize         String   @default("medium")
+  reducedMotion    Boolean  @default(false)
+  compactMode      Boolean  @default(false)
+  settingsUpdatedAt DateTime? // Last sync time
+
   // 2FA login verification
   twoFASecret      String? // For TOTP-based 2FA (future)
   twoFAEnabled     Boolean  @default(false)
@@ -426,4 +435,13 @@ model AIMessage {
   chat AIChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@index([chatId])
+}
+
+// Admin broadcasts
+model Broadcast {
+  id        String   @id @default(uuid())
+  title     String?
+  message   String
+  type      String   @default("info") // 'info' | 'warning' | 'urgent'
+  sentAt    DateTime @default(now())
 }
