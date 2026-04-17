@@ -331,11 +331,22 @@ class ApiClient {
     return this.request<Chat>('/chats/favorites', { method: 'POST' });
   }
 
-  // User settings
-  async updateSettings(data: { hideStoryViews?: boolean }) {
-    return this.request<User>('/users/settings', {
+  // User settings sync
+  async updateSettings(settings: {
+    notifyAll?: boolean;
+    notifyMessages?: boolean;
+    notifyCalls?: boolean;
+    notifyFriends?: boolean;
+    theme?: string;
+    chatTheme?: string;
+    language?: string;
+    fontSize?: string;
+    reducedMotion?: boolean;
+    compactMode?: boolean;
+  }) {
+    return this.request('/users/settings', {
       method: 'PUT',
-      body: JSON.stringify(data),
+      body: JSON.stringify(settings),
     });
   }
 
