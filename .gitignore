@@ -1,52 +1,55 @@
 ```
+# Docker related
+.dockerenv
+Dockerfile.*
+
 # Dependencies
 node_modules/
+vendor/
 
-# Environment variables
+# Logs and temp files
+*.log
+*.tmp
+*.temp
+
+# Environment
 .env
 .env.local
-.env.*
+*.env.*
 
-# Logs
-*.log
-
-# Coverage reports
-coverage/
-htmlcov/
-.coverage
-
-# IDE files
+# Editors
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# OS files
+# OS
 .DS_Store
 Thumbs.db
 
-# Build outputs
+# Build artifacts
 dist/
 build/
 target/
 *.out
-
-# Python cache
-__pycache__/
+*.exe
+*.dll
+*.so
+*.a
+*.class
 *.pyc
-*.pyo
-*.pyd
+__pycache__/
+*.o
+*.obj
 
-# Temporary files
-*.tmp
-*.temp
+# Testing and coverage
+.coverage
+coverage/
+htmlcov/
+.pytest_cache/
+.mypy_cache/
 
-# Database files
-*.db
-*.sqlite
-*.sqlite3
-
-# Compression artifacts
+# Compressed files
 *.zip
 *.gz
 *.tar
