@@ -7,7 +7,8 @@ COPY package*.json ./
 COPY apps/server/package*.json ./apps/server/
 COPY apps/server/web/package*.json ./apps/server/web/
 
-# Install all dependencies (allow optional for platform-specific binaries)
+# Install all dependencies (allow optional for platform-specific binaries like rollup-linux-x64-musl)
+# This fixes the "Cannot find module @rollup/rollup-linux-x64-musl" error during build
 RUN npm install --legacy-peer-deps
 RUN cd apps/server && npm install --legacy-peer-deps
 RUN cd apps/server/web && npm install --legacy-peer-deps
