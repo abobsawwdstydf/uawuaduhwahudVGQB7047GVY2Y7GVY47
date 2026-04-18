@@ -331,25 +331,6 @@ class ApiClient {
     return this.request<Chat>('/chats/favorites', { method: 'POST' });
   }
 
-  // User settings sync
-  async updateSettings(settings: {
-    notifyAll?: boolean;
-    notifyMessages?: boolean;
-    notifyCalls?: boolean;
-    notifyFriends?: boolean;
-    theme?: string;
-    chatTheme?: string;
-    language?: string;
-    fontSize?: string;
-    reducedMotion?: boolean;
-    compactMode?: boolean;
-  }) {
-    return this.request('/users/settings', {
-      method: 'PUT',
-      body: JSON.stringify(settings),
-    });
-  }
-
   // Friends
   async getFriends() {
     return this.request<FriendWithId[]>('/friends');
