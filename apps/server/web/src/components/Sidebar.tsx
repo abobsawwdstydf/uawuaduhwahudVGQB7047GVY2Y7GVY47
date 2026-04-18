@@ -79,8 +79,6 @@ function NavButton({
     </div>
   );
 }
-  );
-}
 
 export default function Sidebar({ onOpenAI, onOpenFriends, onToggleSidebar }: SidebarProps) {
   const { user } = useAuthStore();
