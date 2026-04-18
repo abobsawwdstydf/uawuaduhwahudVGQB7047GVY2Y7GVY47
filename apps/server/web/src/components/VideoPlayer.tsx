@@ -130,7 +130,7 @@ export default function VideoPlayer({ src, poster, onClose }: VideoPlayerProps) 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[9999] bg-black flex items-center justify-center"
+        className="fixed inset-0 z-[99999] bg-black"
         onMouseMove={showControlsHandler}
         onClick={showControlsHandler}
         onTouchStart={showControlsHandler}
@@ -142,13 +142,13 @@ export default function VideoPlayer({ src, poster, onClose }: VideoPlayerProps) 
               e.stopPropagation();
               onClose();
             }}
-            className="absolute top-4 right-4 z-50 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all"
+            className="absolute top-4 right-4 z-50 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center transition-all backdrop-blur-sm"
           >
             <X size={20} className="text-white" />
           </button>
         )}
 
-        {/* Video */}
+        {/* Video - полноэкранный как в Telegram */}
         <video
           ref={videoRef}
           src={src}
@@ -159,6 +159,7 @@ export default function VideoPlayer({ src, poster, onClose }: VideoPlayerProps) 
             togglePlay();
           }}
           playsInline
+          controls={false}
         />
 
         {/* Loading indicator */}

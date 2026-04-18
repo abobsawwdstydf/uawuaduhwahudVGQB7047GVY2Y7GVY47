@@ -80,7 +80,7 @@ function MessageBubble({
   const [contextPos, setContextPos] = useState({ x: 0, y: 0 });
   const [deleteMenuMode, setDeleteMenuMode] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
-  const [showVideoPlayer, setShowVideoPlayer] = useState<string | null>(null);
+  const [showVideoPlayer, setShowVideoPlayer] = useState<{ url: string; poster?: string } | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioProgress, setAudioProgress] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
@@ -363,6 +363,19 @@ function MessageBubble({
       window.removeEventListener('contextmenu', hideMenu, true);
     };
   }, [showContext]);
+
+  // Позиция меню скорости - вычисляем при показе
+  const [speedMenuPos, setSpeedMenuPos] = useState({ top: 0, left: 0 });
+  
+  useEffect(() => {
+    if (showSpeedMenu && speedMenuRef.current) {
+      const rect = speedMenuRef.current.getBoundingClientRect();
+      setSpeedMenuPos({
+        top: rect.bottom + 4,
+        left: rect.left
+      });
+    }
+  }, [showSpeedMenu]);
 
   // Close speed menu on outside click
   useEffect(() => {
@@ -728,17 +741,19 @@ function MessageBubble({
                       sizeStr={sizeStr}
                       durStr={durStr}
                       videoUrl={videoUrl}
-                      onOpenPlayer={(url) => setShowVideoPlayer(url)}
+                      onOpenPlayer={(url, poster) => setShowVideoPlayer({ url, poster })}
                     />
                   );
                 })}
 
-            {/* Video Player Modal */}
-            {showVideoPlayer && (
+            {/* Video Player Modal — используем portal для полноэкранного режима */}
+            {showVideoPlayer && createPortal(
               <VideoPlayer
-                src={showVideoPlayer}
+                src={showVideoPlayer.url}
+                poster={showVideoPlayer.poster}
                 onClose={() => setShowVideoPlayer(null)}
-              />
+              />,
+              document.body
             )}
 
             {/* Опрос — рендерим если type === 'poll' ИЛИ если content содержит JSON опроса */}
@@ -901,7 +916,10 @@ function MessageBubble({
                       {/* Кнопка скорости воспроизведения */}
                       <div className="relative" ref={speedMenuRef}>
                         <button
-                          onClick={() => setShowSpeedMenu(!showSpeedMenu)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowSpeedMenu(!showSpeedMenu);
+                          }}
                           className={`text-xs px-2 py-1 rounded-lg font-medium transition-colors flex-shrink-0 ${
                             isMine
                               ? 'bg-white/20 hover:bg-white/30 text-white/80'
@@ -911,13 +929,14 @@ function MessageBubble({
                           {playbackSpeed}x
                         </button>
 
-                        {/* Меню выбора скорости — через portal чтобы не обрезалось overflow-hidden */}
+                        {/* Меню выбора скорости — улучшенное позиционирование и кликабельность */}
                         {showSpeedMenu && createPortal(
-                          <div className="fixed py-1 rounded-lg bg-zinc-900/95 backdrop-blur-xl border border-white/10 shadow-xl z-[99999]"
+                          <div 
+                            className="fixed py-1.5 rounded-xl bg-zinc-900/95 backdrop-blur-xl border border-white/10 shadow-2xl z-[99999] animate-in fade-in-0 zoom-in-95"
                             style={{
-                              bottom: `${window.innerHeight - (speedMenuRef.current?.getBoundingClientRect().top || 0) + 8}px`,
-                              left: `${speedMenuRef.current?.getBoundingClientRect().left || 0}px`,
-                              minWidth: '80px'
+                              top: `${speedMenuPos.top}px`,
+                              left: `${speedMenuPos.left}px`,
+                              minWidth: '100px'
                             }}
                           >
                             {[1, 1.5, 2, 2.5, 3].map((speed) => (
@@ -931,13 +950,18 @@ function MessageBubble({
                                   }
                                   setShowSpeedMenu(false);
                                 }}
-                                className={`w-full px-3 py-1.5 text-xs text-left transition-colors ${
+                                className={`w-full px-3 py-2.5 text-sm text-left transition-all duration-200 hover:bg-white/10 ${
                                   playbackSpeed === speed
-                                    ? 'bg-nexo-500/30 text-nexo-300'
-                                    : 'text-zinc-300 hover:bg-white/10'
+                                    ? 'bg-nexo-500/30 text-nexo-300 font-medium'
+                                    : 'text-zinc-300'
                                 }`}
                               >
-                                {speed}x
+                                <div className="flex items-center justify-between">
+                                  <span>{speed}x</span>
+                                  {playbackSpeed === speed && (
+                                    <Check size={12} className="text-nexo-400" />
+                                  )}
+                                </div>
                               </button>
                             ))}
                           </div>,
@@ -1344,7 +1368,7 @@ function VideoMessage({
   sizeStr: string;
   durStr: string;
   videoUrl?: string;
-  onOpenPlayer: (url: string) => void;
+  onOpenPlayer: (url: string, poster?: string) => void;
 }) {
   const [loadError, setLoadError] = useState(false);
   const videoUrl = externalVideoUrl || normalizeMediaUrl(media.url);
@@ -1354,7 +1378,7 @@ function VideoMessage({
     <div className={`${content ? 'mb-2 -mx-3 -mt-2' : ''}`}>
       <div
         className="relative rounded-2xl overflow-hidden bg-black group cursor-pointer shadow-lg"
-        onClick={() => !loadError && onOpenPlayer(videoUrl)}
+        onClick={() => !loadError && onOpenPlayer(videoUrl, posterUrl)}
       >
         {!loadError ? (
           <video

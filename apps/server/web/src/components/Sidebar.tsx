@@ -30,6 +30,7 @@ type NavTab = 'chats' | 'friends' | 'settings' | 'profile';
 interface SidebarProps {
   onOpenAI: () => void;
   onOpenFriends: () => void;
+  onToggleSidebar?: () => void;
 }
 
 /**
@@ -75,12 +76,30 @@ function NavButton({
         {label}
         {/* Стрелка */}
         <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-zinc-800" />
+        </div>
       </div>
-    </div>
+
+          {/* Toggle button for sidebar (bottom right corner) */}
+          {!isMobile && (
+            <button
+              onClick={() => {
+                setIsSidebarVisible(!isSidebarVisible);
+                onToggleSidebar?.();
+              }}
+              className="fixed bottom-4 right-4 z-50 w-12 h-12 rounded-full bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white shadow-lg hover:shadow-xl transition-all hover:scale-105"
+            >
+              {isSidebarVisible ? (
+                <X size={20} />
+              ) : (
+                <Menu size={20} />
+              )}
+            </button>
+          )}
+    </>
   );
 }
 
-export default function Sidebar({ onOpenAI, onOpenFriends }: SidebarProps) {
+export default function Sidebar({ onOpenAI, onOpenFriends, onToggleSidebar }: SidebarProps) {
   const { user } = useAuthStore();
   const { chats, activeChat, searchQuery, setSearchQuery, addChat, setActiveChat } = useChatStore();
   const { t } = useLang();
@@ -95,6 +114,7 @@ export default function Sidebar({ onOpenAI, onOpenFriends }: SidebarProps) {
   // Навигация
   const [activeTab, setActiveTab] = useState<NavTab>('chats');
   const [isMobile, setIsMobile] = useState(false);
+  const [isSidebarVisible, setIsSidebarVisible] = useState(false); // Always hidden by default
 
   // Результаты поиска
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -236,7 +256,7 @@ export default function Sidebar({ onOpenAI, onOpenFriends }: SidebarProps) {
       <div className="w-full sm:w-[380px] h-full flex bg-[#0a0a0f] sm:rounded-3xl overflow-hidden border border-white/5 relative z-10">
 
         {/* ====== БОКОВАЯ НАВИГАЦИЯ (ПК) ====== */}
-        {!isMobile && (
+        {!isMobile && isSidebarVisible && (
           <div className="w-[56px] glass-strong flex flex-col items-center py-3 gap-2 flex-shrink-0 z-20">
             {/* Логотип */}
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center mb-2">

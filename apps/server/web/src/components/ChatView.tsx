@@ -19,6 +19,7 @@ import {
   Bookmark,
   ChevronDown,
   BarChart3,
+  Menu,
 } from 'lucide-react';
 import { useChatStore } from '../stores/chatStore';
 import { useAuthStore } from '../stores/authStore';
@@ -563,18 +564,31 @@ export default function ChatView({ onStartCall, onStartGroupCall }: { onStartCal
         </div>
       ) : (
         <div className="h-[60px] sm:h-[76px] flex items-center justify-between px-4 sm:px-6 border-b border-border/40 bg-[#09090b]/80 backdrop-blur-xl z-20 flex-shrink-0">
-          <button
-            className="flex items-center gap-3 min-w-0 flex-1 group transition-all"
-            onClick={() => {
-              if (chat.type === 'channel') {
-                setShowChannelProfile(true);
-              } else if (chat.type === 'personal' && otherMember) {
-                setProfileUserId(otherMember.user.id);
-              } else if (chat.type === 'group') {
-                setShowGroupSettings(true);
-              }
-            }}
-          >
+          <div className="flex items-center gap-3">
+            {/* Кнопка открытия сайдбара */}
+            <button
+              onClick={() => {
+                // Dispatch event to open sidebar in ChatPage
+                window.dispatchEvent(new CustomEvent('toggle-sidebar'));
+              }}
+              className="p-2 rounded-lg hover:bg-white/10 transition-colors text-zinc-400 hover:text-white"
+              title="Меню"
+            >
+              <Menu size={20} />
+            </button>
+            
+            <button
+              className="flex items-center gap-3 min-w-0 flex-1 group transition-all"
+              onClick={() => {
+                if (chat.type === 'channel') {
+                  setShowChannelProfile(true);
+                } else if (chat.type === 'personal' && otherMember) {
+                  setProfileUserId(otherMember.user.id);
+                } else if (chat.type === 'group') {
+                  setShowGroupSettings(true);
+                }
+              }}
+            >
             <div className="relative flex-shrink-0 transform transition-transform duration-300 group-hover:scale-105">
               {isFavorites ? (
                 <div className="w-11 h-11 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg ring-2 ring-transparent group-hover:ring-accent/30 transition-all duration-300">

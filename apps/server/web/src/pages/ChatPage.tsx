@@ -63,6 +63,7 @@ export default function ChatPage() {
   const [showAI, setShowAI] = useState(false);
   const [showFriends, setShowFriends] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(false); // Sidebar state - скрыт по умолчанию
 
   // Определяем мобильное устройство
   useEffect(() => {
@@ -232,12 +233,14 @@ export default function ChatPage() {
     
     window.addEventListener('open-channel-by-username', handleOpenChannel);
     window.addEventListener('open-chat-by-username', handleOpenChat);
+    window.addEventListener('toggle-sidebar', () => setShowSidebar(!showSidebar));
     
     return () => {
       window.removeEventListener('open-channel-by-username', handleOpenChannel);
       window.removeEventListener('open-chat-by-username', handleOpenChat);
+      window.removeEventListener('toggle-sidebar', () => setShowSidebar(!showSidebar));
     };
-  }, [loadChats]);
+  }, [loadChats, showSidebar]);
 
   const handleJoinChannel = async (username: string) => {
     try {
@@ -532,9 +535,9 @@ export default function ChatPage() {
       exit={{ opacity: 0 }}
       className="h-full w-full flex flex-col sm:flex-row bg-surface gap-0 overflow-hidden"
     >
-      {/* Sidebar — на мобилках скрыт когда открыт чат, на ПК всегда виден */}
-      <div className={`${isMobile && activeChat ? 'hidden' : 'flex'} sm:flex w-full sm:w-[340px] flex-shrink-0 min-w-0 ${showAI && !isMobile ? 'hidden' : ''}`}>
-        <Sidebar onOpenAI={() => setShowAI(true)} onOpenFriends={() => setShowFriends(true)} />
+      {/* Sidebar — всегда скрыт по умолчанию, открывается по кнопке */}
+      <div className={`${showSidebar ? 'flex' : 'hidden'} sm:flex w-full sm:w-[380px] flex-shrink-0 min-w-0 ${showAI && !isMobile ? 'hidden' : ''}`}>
+        <Sidebar onOpenAI={() => setShowAI(true)} onOpenFriends={() => setShowFriends(true)} onToggleSidebar={() => setShowSidebar(!showSidebar)} />
       </div>
 
       {/* ChatView — на мобилках поверх когда activeChat, на ПК всегда рядом */}

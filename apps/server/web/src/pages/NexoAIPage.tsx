@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Mic, MicOff, Loader2, X, ArrowLeft, Forward, Download, Edit2, Trash2, Plus, MessageSquare } from 'lucide-react';
+import { Send, Mic, MicOff, Loader2, X, ArrowLeft, Forward, Download, Edit2, Trash2, Plus, MessageSquare, Sparkles } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { api } from '../lib/api';
 import CodeBlock from '../components/CodeBlock';
@@ -37,7 +37,7 @@ export default function NexoAIPage({ onClose, isFullMode }: { onClose?: () => vo
   const [isSending, setIsSending] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(isFullMode !== true);
+  const [showSidebar, setShowSidebar] = useState(false); // Всегда скрыта по умолчанию
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [showForwardModal, setShowForwardModal] = useState(false);
@@ -112,12 +112,12 @@ export default function NexoAIPage({ onClose, isFullMode }: { onClose?: () => vo
         await loadChatList();
         setCurrentChatId(chat.id);
         setMessages([]);
-        setShowSidebar(isMobile);
+        setShowSidebar(false); // Всегда скрываем при новом чате
       }
     } catch (error) {
       console.error('Error creating chat:', error);
     }
-  }, [token, isMobile]);
+  }, [token]);
 
   /** Удаление чата */
   const deleteChat = useCallback(async (chatId: string, e?: React.MouseEvent) => {
@@ -192,7 +192,7 @@ export default function NexoAIPage({ onClose, isFullMode }: { onClose?: () => vo
     }
   }, [token, currentChatId]);
 
-  /** Загрузка чатов для пересылки */
+  /** Загрузка чатов для пересылки (только личные чаты и группы, не каналы) */
   const loadChatsForForward = useCallback(async () => {
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/chats`, {
@@ -200,7 +200,9 @@ export default function NexoAIPage({ onClose, isFullMode }: { onClose?: () => vo
       });
       if (res.ok) {
         const chats = await res.json();
-        setChatsForForward(chats);
+        // Фильтруем только личные чаты и группы, не каналы
+        const filtered = chats.filter((c: any) => c.type !== 'channel');
+        setChatsForForward(filtered);
       }
     } catch (error) {
       console.error('Error loading chats for forward:', error);
@@ -489,43 +491,40 @@ export default function NexoAIPage({ onClose, isFullMode }: { onClose?: () => vo
   };
 
   return (
-    <div className="h-full flex flex-col relative">
-      {/* Фон как в чатах */}
-      <div className="absolute inset-0 pointer-events-none opacity-[0.03]"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-        }}
-      />
-
+    <div className="h-full flex flex-col relative bg-[#0a0a0f]">
       {/* ====== HEADER ====== */}
-      <div className="glass-strong px-4 py-3 flex items-center gap-3 flex-shrink-0 relative z-10 border-b border-white/5">
-        {/* Закрыть (мобилки) */}
-        {isMobile && onClose && (
-          <button
-            onClick={onClose}
-            className="glass-btn w-9 h-9 rounded-xl text-zinc-400"
-          >
-            <ArrowLeft size={18} />
-          </button>
-        )}
+      <div className="h-[60px] sm:h-[64px] px-4 flex items-center gap-3 flex-shrink-0 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl">
+        {/* Меню (открыть список чатов) */}
+        <button
+          onClick={() => setShowSidebar(true)}
+          className="glass-btn w-10 h-10 rounded-xl text-zinc-300 hover:text-white flex-shrink-0"
+          title="Чаты AI"
+        >
+          <MessageSquare size={18} />
+        </button>
 
         {/* Логотип и название */}
-        <div className="flex items-center gap-2.5 flex-1">
-          <img src="/no_bg.png" alt="Nexo AI" className="w-9 h-9 rounded-xl object-cover" />
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          <div className="relative">
+            <div className="absolute inset-0 bg-purple-500/30 blur-xl rounded-xl" />
+            <div className="relative w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-lg">
+              <Sparkles size={16} className="text-white" />
+            </div>
+          </div>
           <div>
-            <h1 className="text-base font-bold text-white">Nexo AI</h1>
+            <h1 className="text-base font-semibold text-white truncate">Nexo AI</h1>
             <p className="text-[10px] text-zinc-500">Умный ассистент</p>
           </div>
         </div>
 
         {/* Кнопки управления */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {/* Экспорт чата */}
           {currentChatId && (
             <button
               onClick={exportChat}
               className="glass-btn w-9 h-9 rounded-xl text-zinc-400 hover:text-white"
-              title="Экспортировать чат в JSON"
+              title="Экспортировать"
             >
               <Download size={16} />
             </button>
@@ -534,17 +533,17 @@ export default function NexoAIPage({ onClose, isFullMode }: { onClose?: () => vo
           {/* Новый чат */}
           <button
             onClick={createNewChat}
-            className="glass-btn w-9 h-9 rounded-xl text-zinc-400 hover:text-nexo-400"
+            className="glass-btn w-9 h-9 rounded-xl text-nexo-400 hover:text-white"
             title="Новый чат"
           >
             <Plus size={16} />
           </button>
 
-          {/* Закрыть (ПК) */}
-          {!isMobile && onClose && (
+          {/* Закрыть */}
+          {onClose && (
             <button
               onClick={onClose}
-              className="glass-btn w-9 h-9 rounded-xl text-zinc-400"
+              className="glass-btn w-9 h-9 rounded-xl text-zinc-400 hover:text-white"
             >
               <X size={16} />
             </button>
@@ -558,36 +557,36 @@ export default function NexoAIPage({ onClose, isFullMode }: { onClose?: () => vo
           {showSidebar && (
             <motion.div
               initial={{ width: 0, opacity: 0 }}
-              animate={{ width: isMobile ? '100%' : 280, opacity: 1 }}
+              animate={{ width: isMobile ? '100%' : 320, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
-              className="border-r border-white/5 bg-[#0a0a12] overflow-hidden flex-shrink-0"
+              className="border-r border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden flex-shrink-0"
             >
-              <div className={`h-full flex flex-col ${isMobile ? 'w-full' : 'w-[280px]'}`}>
+              <div className={`h-full flex flex-col ${isMobile ? 'w-full' : 'w-[320px]'}`}>
                 {/* Заголовок */}
-                <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
-                  <h2 className="text-sm font-semibold text-white">Чаты</h2>
+                <div className="px-4 py-4 border-b border-white/10 flex items-center justify-between bg-white/5">
+                  <h2 className="text-base font-semibold text-white">История чатов</h2>
                   {isMobile && (
-                    <button onClick={() => setShowSidebar(false)} className="text-zinc-400">
-                      <X size={18} />
+                    <button onClick={() => setShowSidebar(false)} className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition-all">
+                      <X size={16} />
                     </button>
                   )}
                 </div>
 
                 {/* Список чатов */}
-                <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                <div className="flex-1 overflow-y-auto p-3 space-y-2">
                   {chatList.map((chat) => (
                     <div
                       key={chat.id}
                       onClick={() => selectChat(chat.id)}
-                      className={`group p-3 rounded-xl cursor-pointer transition-all ${
+                      className={`group p-4 rounded-2xl cursor-pointer transition-all duration-200 ${
                         currentChatId === chat.id
-                          ? 'bg-nexo-500/20 border border-nexo-500/30'
-                          : 'hover:bg-white/5 border border-transparent'
+                          ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/30 shadow-lg'
+                          : 'hover:bg-white/10 border border-white/10/50 hover:border-white/20 hover:shadow-md'
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-nexo-500/20 to-purple-600/20 flex items-center justify-center flex-shrink-0">
-                          <MessageSquare size={18} className="text-nexo-400" />
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500/30 to-blue-500/30 flex items-center justify-center flex-shrink-0 shadow-sm">
+                          <MessageSquare size={20} className="text-purple-300" />
                         </div>
                         <div className="flex-1 min-w-0">
                           {editingChatId === chat.id ? (
@@ -598,31 +597,31 @@ export default function NexoAIPage({ onClose, isFullMode }: { onClose?: () => vo
                               onBlur={saveChatTitle}
                               onKeyDown={(e) => e.key === 'Enter' && saveChatTitle()}
                               onClick={(e) => e.stopPropagation()}
-                              className="w-full bg-black/30 text-white text-sm px-2 py-1 rounded outline-none border border-nexo-500/50"
+                              className="w-full bg-white/10 text-white text-sm px-3 py-2 rounded-xl outline-none border border-white/20 focus:border-purple-400 transition-colors"
                               autoFocus
                             />
                           ) : (
                             <>
-                              <h3 className="text-sm font-medium text-white truncate">{chat.title}</h3>
-                              <p className="text-xs text-zinc-500 truncate">
+                              <h3 className="text-sm font-semibold text-white truncate">{chat.title}</h3>
+                              <p className="text-xs text-white/60 mt-1 truncate">
                                 {chat.lastMessage || 'Нет сообщений'}
                               </p>
                             </>
                           )}
                         </div>
                         {/* Действия с чатом */}
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
                           <button
                             onClick={(e) => startEditingChat(chat, e)}
-                            className="p-1.5 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white"
+                            className="w-8 h-8 rounded-xl hover:bg-white/10 text-white/60 hover:text-white transition-all"
                           >
-                            <Edit2 size={12} />
+                            <Edit2 size={14} />
                           </button>
                           <button
                             onClick={(e) => deleteChat(chat.id, e)}
-                            className="p-1.5 rounded-lg hover:bg-red-500/20 text-zinc-400 hover:text-red-400"
+                            className="w-8 h-8 rounded-xl hover:bg-red-500/20 text-white/60 hover:text-red-400 transition-all"
                           >
-                            <Trash2 size={12} />
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       </div>
@@ -630,7 +629,10 @@ export default function NexoAIPage({ onClose, isFullMode }: { onClose?: () => vo
                   ))}
                   
                   {chatList.length === 0 && (
-                    <div className="text-center py-8 text-zinc-500 text-sm">
+                    <div className="text-center py-12 text-white/40 text-sm">
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white/5 flex items-center justify-center">
+                        <MessageSquare size={24} className="text-white/30" />
+                      </div>
                       Нет чатов. Создайте первый!
                     </div>
                   )}
@@ -638,10 +640,10 @@ export default function NexoAIPage({ onClose, isFullMode }: { onClose?: () => vo
 
                 {/* Кнопка создания */}
                 {!isMobile && (
-                  <div className="p-3 border-t border-white/5">
+                  <div className="p-4 border-t border-white/10">
                     <button
                       onClick={createNewChat}
-                      className="w-full py-2.5 px-4 bg-nexo-500 hover:bg-nexo-600 text-white rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                      className="w-full py-3 px-4 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white rounded-xl text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
                     >
                       <Plus size={16} />
                       Новый чат
@@ -665,26 +667,30 @@ export default function NexoAIPage({ onClose, isFullMode }: { onClose?: () => vo
             </button>
           )}
 
-          {/* СООБЩЕНИЯ */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 relative z-10">
+           {/* СООБЩЕНИЯ */}
+          <div className="flex-1 overflow-y-auto px-6 py-6 relative z-10">
             <AnimatePresence>
               {messages.length === 0 ? (
                 <motion.div
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="flex flex-col items-center justify-center h-full text-center gap-4"
+                  className="flex flex-col items-center justify-center h-full text-center gap-6"
                 >
                   <div className="relative">
-                    <div className="absolute inset-0 bg-gradient-to-br from-nexo-500/30 to-purple-600/30 blur-2xl rounded-full" />
-                    <img src="/no_bg.png" alt="Nexo AI" className="relative w-20 h-20 rounded-full object-cover animate-float" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/30 to-blue-500/30 blur-2xl rounded-full" />
+                    <div className="relative w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-xl">
+                      <Sparkles size={32} className="text-white" />
+                    </div>
                   </div>
-                  <div className="max-w-xs">
-                    <h2 className="text-lg font-bold text-white mb-2">Nexo AI</h2>
-                    <p className="text-sm text-zinc-400 whitespace-pre-line">{welcomeMessage}</p>
+                  <div className="max-w-sm">
+                    <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent mb-3">
+                      Nexo AI
+                    </h2>
+                    <p className="text-white/80 whitespace-pre-line leading-relaxed">{welcomeMessage}</p>
                   </div>
                 </motion.div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-6">
                   {messages.map((msg) => (
                     <motion.div
                       key={msg.id}
@@ -693,17 +699,25 @@ export default function NexoAIPage({ onClose, isFullMode }: { onClose?: () => vo
                       className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                       <div
-                        className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-sm rounded-br-md group relative ${
+                        className={`max-w-[80%] px-6 py-4 rounded-2xl text-sm ${
                           msg.role === 'user'
-                            ? 'bg-gradient-to-br from-nexo-500 to-purple-600 text-white'
-                            : 'glass-subtle text-zinc-200 rounded-bl-md'
+                            ? 'bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg'
+                            : 'bg-white/10 backdrop-blur-xl text-white/90 border border-white/10 rounded-bl-3xl shadow-lg'
                         }`}
                       >
-                        {msg.role === 'assistant' ? renderAIMessage(msg.content) : (
+                        {msg.role === 'assistant' ? (
+                          <div className="prose prose-invert max-w-none">
+                            {renderAIMessage(msg.content)}
+                          </div>
+                        ) : (
                           <span className="whitespace-pre-wrap">{msg.content}</span>
                         )}
                         {msg.isStreaming && (
-                          <span className="inline-block w-1.5 h-4 bg-nexo-400 ml-0.5 animate-pulse-soft rounded-full" />
+                          <div className="flex items-center gap-1 mt-2">
+                            <span className="inline-block w-1.5 h-4 bg-white/40 animate-pulse rounded-full" />
+                            <span className="inline-block w-1.5 h-4 bg-white/40 animate-pulse rounded-full animation-delay-100" />
+                            <span className="inline-block w-1.5 h-4 bg-white/40 animate-pulse rounded-full animation-delay-200" />
+                          </div>
                         )}
                         
                         {/* Кнопка пересылки для сообщений AI */}
@@ -714,10 +728,10 @@ export default function NexoAIPage({ onClose, isFullMode }: { onClose?: () => vo
                               loadChatsForForward();
                               setShowForwardModal(true);
                             }}
-                            className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity glass-btn p-1.5 rounded-lg bg-black/80 text-zinc-400 hover:text-white"
+                            className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity w-8 h-8 rounded-xl bg-black/80 text-white/80 hover:text-white backdrop-blur-sm"
                             title="Переслать сообщение"
                           >
-                            <Forward size={12} />
+                            <Forward size={14} />
                           </button>
                         )}
                       </div>
