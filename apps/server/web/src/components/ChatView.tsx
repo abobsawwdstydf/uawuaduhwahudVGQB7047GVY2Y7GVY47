@@ -646,6 +646,7 @@ export default function ChatView({ onStartCall, onStartGroupCall }: { onStartCal
               {isChannelSubscribed ? (t('unsubscribe') || 'Выйти') : (t('subscribe') || 'Подписаться')}
             </button>
           )}
+          </div>
 
           <div className="flex items-center gap-1.5 ml-4">
             {/* Поиск */}
