@@ -74,28 +74,11 @@ function NavButton({
       {/* Tooltip — текст справа при hover */}
       <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg bg-zinc-800 border border-white/10 text-sm text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50 shadow-xl pointer-events-none">
         {label}
-        {/* Стрелка */}
         <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-zinc-800" />
-        </div>
       </div>
-
-          {/* Toggle button for sidebar (bottom right corner) */}
-          {!isMobile && (
-            <button
-              onClick={() => {
-                setIsSidebarVisible(!isSidebarVisible);
-                onToggleSidebar?.();
-              }}
-              className="fixed bottom-4 right-4 z-50 w-12 h-12 rounded-full bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white shadow-lg hover:shadow-xl transition-all hover:scale-105"
-            >
-              {isSidebarVisible ? (
-                <X size={20} />
-              ) : (
-                <Menu size={20} />
-              )}
-            </button>
-          )}
-    </>
+    </div>
+  );
+}
   );
 }
 
